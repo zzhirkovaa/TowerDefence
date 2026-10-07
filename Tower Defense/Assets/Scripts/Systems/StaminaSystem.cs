@@ -2,11 +2,7 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 
-/// <summary>
-/// Плавно восстанавливает стамину. Если она кончилась — выключает CanMove,
-/// пока Current снова не дорастёт до MinToMove.
-/// </summary>
-[UpdateBefore(typeof(MoveAlongPathSystem))]
+[UpdateBefore(typeof(MoveToTowerSystem))]
 public partial struct StaminaSystem : ISystem
 {
     public void OnCreate(ref SystemState state)
@@ -29,7 +25,6 @@ public partial struct StaminaSystem : ISystem
                 canMove = false;
             }
 
-            // Восстанавливается, только пока моб стоит. Иначе паузу не видно.
             if (!canMove)
             {
                 stamina.ValueRW.Current = math.min(

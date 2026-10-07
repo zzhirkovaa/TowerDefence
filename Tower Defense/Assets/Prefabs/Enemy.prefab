@@ -105,8 +105,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAuthoring
   Speed: 2
   ReachDistance: 0.35
-  Health: 10
   MaxStamina: 4
   StaminaDrainPerSecond: 1.6
   StaminaRegenPerSecond: 1.1
-  DamageToTower: 8
