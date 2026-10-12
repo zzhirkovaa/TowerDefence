@@ -164,6 +164,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawnerAuthoring
   Prefab: {fileID: 2519141825521355282, guid: 5c6bbaebf6d4c4741953e94d13b007bb, type: 3}
+  EnemyCount: 12
+  SpawnInterval: 0.7
+  SpawnSpread: 1.2
 --- !u!1 &825062721
 GameObject:
   m_ObjectHideFlags: 0
