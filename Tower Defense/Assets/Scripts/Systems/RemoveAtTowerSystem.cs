@@ -6,6 +6,22 @@ using Unity.Transforms;
 [UpdateAfter(typeof(MoveToTowerSystem))]
 public partial struct RemoveAtTowerSystem : ISystem
 {
+    [BurstCompile]
+    partial struct RemoveAtTowerJob : IJobEntity
+    {
+        public float2 TowerPosition;
+        public EntityCommandBuffer.ParallelWriter CommandBuffer;
+
+        void Execute(Entity entity, [ChunkIndexInQuery] int sortKey,
+            in LocalTransform transform, in MoveSpeed speed)
+        {
+            var offset = TowerPosition - transform.Position.xz;
+            var reach = speed.ReachDistance;
+            if (math.lengthsq(offset) <= reach * reach)
+                CommandBuffer.DestroyEntity(sortKey, entity);
+        }
+    }
+
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<TowerTarget>();
@@ -20,14 +36,11 @@ public partial struct RemoveAtTowerSystem : ISystem
         var towerPosition = SystemAPI.GetComponent<LocalTransform>(tower).Position;
         var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
             .CreateCommandBuffer(state.WorldUnmanaged);
-
-        foreach (var (transform, speed, entity) in
-                 SystemAPI.Query<RefRO<LocalTransform>, RefRO<MoveSpeed>>().WithEntityAccess())
+        var job = new RemoveAtTowerJob
         {
-            var offset = towerPosition.xz - transform.ValueRO.Position.xz;
-            var reach = speed.ValueRO.ReachDistance;
-            if (math.lengthsq(offset) <= reach * reach)
-                ecb.DestroyEntity(entity);
-        }
+            TowerPosition = towerPosition.xz,
+            CommandBuffer = ecb.AsParallelWriter()
+        };
+        state.Dependency = job.ScheduleParallel(state.Dependency);
     }
 }

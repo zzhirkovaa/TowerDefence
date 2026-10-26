@@ -5,6 +5,29 @@ using Unity.Mathematics;
 [UpdateBefore(typeof(MoveToTowerSystem))]
 public partial struct StaminaSystem : ISystem
 {
+    [BurstCompile]
+    [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
+    partial struct StaminaJob : IJobEntity
+    {
+        public float DeltaTime;
+
+        void Execute(ref Stamina stamina, EnabledRefRW<CanMove> canMove)
+        {
+            if (canMove.ValueRO && stamina.Current <= 0f)
+                canMove.ValueRW = false;
+
+            if (!canMove.ValueRO)
+            {
+                stamina.Current = math.min(
+                    stamina.Max,
+                    stamina.Current + stamina.RegenPerSecond * DeltaTime);
+
+                if (stamina.Current >= stamina.MinToMove)
+                    canMove.ValueRW = true;
+            }
+        }
+    }
+
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<Stamina>();
@@ -13,27 +36,10 @@ public partial struct StaminaSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var deltaTime = SystemAPI.Time.DeltaTime;
-
-        foreach (var (stamina, entity) in SystemAPI.Query<RefRW<Stamina>>().WithEntityAccess())
+        var job = new StaminaJob
         {
-            var canMove = SystemAPI.IsComponentEnabled<CanMove>(entity);
-
-            if (canMove && stamina.ValueRO.Current <= 0f)
-            {
-                SystemAPI.SetComponentEnabled<CanMove>(entity, false);
-                canMove = false;
-            }
-
-            if (!canMove)
-            {
-                stamina.ValueRW.Current = math.min(
-                    stamina.ValueRO.Max,
-                    stamina.ValueRO.Current + stamina.ValueRO.RegenPerSecond * deltaTime);
-
-                if (stamina.ValueRO.Current >= stamina.ValueRO.MinToMove)
-                    SystemAPI.SetComponentEnabled<CanMove>(entity, true);
-            }
-        }
+            DeltaTime = SystemAPI.Time.DeltaTime
+        };
+        state.Dependency = job.ScheduleParallel(state.Dependency);
     }
 }

@@ -5,6 +5,30 @@ using Unity.Transforms;
 
 public partial struct MoveToTowerSystem : ISystem
 {
+    [BurstCompile]
+    [WithAll(typeof(CanMove))]
+    partial struct MoveToTowerJob : IJobEntity
+    {
+        public float3 TowerPosition;
+        public float DeltaTime;
+
+        void Execute(ref LocalTransform transform, in MoveSpeed speed, ref Stamina stamina)
+        {
+            var position = transform.Position;
+            var target = new float3(TowerPosition.x, position.y, TowerPosition.z);
+            var offset = target - position;
+            var distance = math.length(offset);
+            if (distance <= speed.ReachDistance)
+                return;
+
+            var direction = offset / distance;
+            var step = math.min(speed.Value * DeltaTime, distance - speed.ReachDistance);
+            transform.Position = position + direction * step;
+            transform.Rotation = quaternion.LookRotationSafe(direction, math.up());
+            stamina.Current = math.max(0f, stamina.Current - stamina.DrainPerSecond * DeltaTime);
+        }
+    }
+
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<TowerTarget>();
@@ -16,26 +40,11 @@ public partial struct MoveToTowerSystem : ISystem
     {
         var towerEntity = SystemAPI.GetSingletonEntity<TowerTarget>();
         var towerPosition = SystemAPI.GetComponent<LocalTransform>(towerEntity).Position;
-        var deltaTime = SystemAPI.Time.DeltaTime;
-
-        foreach (var (transform, speed, stamina) in
-                 SystemAPI.Query<RefRW<LocalTransform>, RefRO<MoveSpeed>, RefRW<Stamina>>()
-                     .WithAll<CanMove>())
+        var job = new MoveToTowerJob
         {
-            var position = transform.ValueRO.Position;
-            var target = new float3(towerPosition.x, position.y, towerPosition.z);
-            var offset = target - position;
-            var distance = math.length(offset);
-            if (distance <= speed.ValueRO.ReachDistance)
-                continue;
-
-            var direction = offset / distance;
-            var step = math.min(speed.ValueRO.Value * deltaTime, distance - speed.ValueRO.ReachDistance);
-            transform.ValueRW.Position = position + direction * step;
-            transform.ValueRW.Rotation = quaternion.LookRotationSafe(direction, math.up());
-            stamina.ValueRW.Current = math.max(
-                0f,
-                stamina.ValueRO.Current - stamina.ValueRO.DrainPerSecond * deltaTime);
-        }
+            TowerPosition = towerPosition,
+            DeltaTime = SystemAPI.Time.DeltaTime
+        };
+        state.Dependency = job.ScheduleParallel(state.Dependency);
     }
 }
