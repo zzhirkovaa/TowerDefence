@@ -33,5 +33,6 @@ class EnemySpawnerBaker : Baker<EnemySpawnerAuthoring>
         var interval = Mathf.Max(0.05f, authoring.SpawnInterval);
         for (var i = 0; i < count; i++)
             requests.Add(new EnemySpawnRequest { DelayBeforeNext = interval });
+
     }
 }

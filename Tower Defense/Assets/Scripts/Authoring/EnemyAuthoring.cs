@@ -1,4 +1,6 @@
 using Unity.Entities;
+using Unity.Mathematics;
+using Unity.Physics;
 using UnityEngine;
 
 public class EnemyAuthoring : MonoBehaviour
@@ -31,5 +33,22 @@ class EnemyBaker : Baker<EnemyAuthoring>
         });
         AddComponent<CanMove>(entity);
         SetComponentEnabled<CanMove>(entity, true);
+
+        var filter = new CollisionFilter
+        {
+            BelongsTo = 1u << 1,
+            CollidesWith = (1u << 0) | (1u << 1),
+            GroupIndex = 0
+        };
+        var collider = Unity.Physics.SphereCollider.Create(
+            new SphereGeometry { Center = float3.zero, Radius = 0.72f }, filter);
+        AddBlobAsset(ref collider, out _);
+        AddComponent(entity, new PhysicsCollider { Value = collider });
+        var mass = PhysicsMass.CreateDynamic(collider.Value.MassProperties, 1f);
+        mass.InverseInertia = float3.zero;
+        AddComponent(entity, mass);
+        AddComponent(entity, new PhysicsVelocity());
+        AddComponent(entity, new PhysicsGravityFactor { Value = 0f });
+        AddSharedComponent(entity, PhysicsWorldIndex.Default);
     }
 }

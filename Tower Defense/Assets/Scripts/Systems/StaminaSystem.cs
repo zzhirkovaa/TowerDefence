@@ -1,7 +1,11 @@
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Physics;
+using Unity.Physics.Systems;
 
+[UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
+[UpdateBefore(typeof(PhysicsSystemGroup))]
 [UpdateBefore(typeof(MoveToTowerSystem))]
 public partial struct StaminaSystem : ISystem
 {
@@ -11,13 +15,15 @@ public partial struct StaminaSystem : ISystem
     {
         public float DeltaTime;
 
-        void Execute(ref Stamina stamina, EnabledRefRW<CanMove> canMove)
+        void Execute(ref Stamina stamina, ref PhysicsVelocity velocity,
+            EnabledRefRW<CanMove> canMove)
         {
             if (canMove.ValueRO && stamina.Current <= 0f)
                 canMove.ValueRW = false;
 
             if (!canMove.ValueRO)
             {
+                velocity.Linear = float3.zero;
                 stamina.Current = math.min(
                     stamina.Max,
                     stamina.Current + stamina.RegenPerSecond * DeltaTime);
